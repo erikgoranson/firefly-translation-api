@@ -3,13 +3,12 @@ from flask import Flask, request, jsonify
 from flask_marshmallow import Marshmallow
 from flask_sqlalchemy import SQLAlchemy
 from marshmallow import ValidationError
-from seed import translations
+import init_db
 
 app = Flask(__name__)
 basedir = os.path.abspath(os.path.dirname(__file__))
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///'+ os.path.join(basedir, 'db.sqlite3')
-
 DB_FILE_NAME = os.path.join(basedir, 'db.sqlite3')
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///'+ DB_FILE_NAME
 
 db = SQLAlchemy(app)
 ma = Marshmallow(app)
@@ -35,11 +34,14 @@ class TranslationModel(db.Model):
         self.script_english_translation = script_english_translation
         self.context = context
         self.additional_info = additional_info
-
+    
+    def __repr__(self):
+        return f'<TranslationModel {self.foreign_word} {self.category}>' 
+    
 class TranslationSchema(ma.SQLAlchemyAutoSchema):
     class Meta:
         model = TranslationModel 
-        
+
 translation_schema = TranslationSchema()
 translations_schema = TranslationSchema(many=True)
 
@@ -51,7 +53,6 @@ def index():
 
 @app.route('/api/translation', methods=['GET'])
 def get_translations():
-    
     all_translations = TranslationModel.query.all()
     return jsonify({
         'count': len(all_translations),
@@ -149,14 +150,5 @@ def delete_translation(translation_id):
 
     return jsonify({'message':f'Translation {translation_id} successfully deleted'})
 
-with app.app_context():
-
-    if not os.path.isfile(DB_FILE_NAME):
-        db.create_all()
-        for i in translations:
-            translation = TranslationModel(**i) 
-            db.session.add(translation)
-        db.session.commit() 
-    
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5173, debug=True) # debug
